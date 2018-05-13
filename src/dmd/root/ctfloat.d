@@ -27,15 +27,32 @@ private
 {
     version(CRuntime_DigitalMars) __gshared extern (C) extern const(char)* __locale_decpoint;
 
-    version(CRuntime_Microsoft) extern (C++)
-    {
-        static if (is(real_t == real))
-            struct longdouble { real_t r; }
-        else
-            import dmd.root.longdouble : longdouble;
-        size_t ld_sprint(char* str, int fmt, longdouble x);
-        longdouble strtold_dm(const(char)* p, char** endp);
-    }
+	/*
+	 * Detects if we are compiling against a NoBackend target.
+	 * If so, we ditch the functions that dmd's backend provides and rely on less desirable ones.
+	 */
+	version(NoBackend)
+	{
+	}
+	else
+	{
+	    version(CRuntime_Microsoft) extern (C++)
+	    {
+			/*
+			 * We define the version CRuntime_Microsoft_Backend so that
+			 *  in later parts of the code, it won't have to be complicated
+			 *  or do the same detection for NoBackend as we do here.
+			 */
+			version = CRuntime_Microsoft_Backend;
+
+	        static if (is(real_t == real))
+	            struct longdouble { real_t r; }
+	        else
+	            import dmd.root.longdouble : longdouble;
+	        size_t ld_sprint(char* str, int fmt, longdouble x);
+	        longdouble strtold_dm(const(char)* p, char** endp);
+	    }
+	}
 }
 
 // Compile-time floating-point helper
@@ -147,7 +164,7 @@ extern (C++) struct CTFloat
     // the implementation of longdouble for MSVC is a struct, so mangling
     //  doesn't match with the C++ header.
     // add a wrapper just for isSNaN as this is the only function called from C++
-    version(CRuntime_Microsoft) static if (is(real_t == real))
+	version(CRuntime_Microsoft_Backend) static if (is(real_t == real))
         static bool isSNaN(longdouble ld)
         {
             return isSNaN(ld.r);
@@ -166,7 +183,7 @@ extern (C++) struct CTFloat
             auto save = __locale_decpoint;
             __locale_decpoint = ".";
         }
-        version(CRuntime_Microsoft)
+		version(CRuntime_Microsoft_Backend)
         {
             version(LDC)
                 auto r = strtold_dm(literal, null);
@@ -183,7 +200,7 @@ extern (C++) struct CTFloat
 
     static int sprint(char* str, char fmt, real_t x)
     {
-        version(CRuntime_Microsoft)
+		version(CRuntime_Microsoft_Backend)
         {
             return cast(int)ld_sprint(str, fmt, longdouble(x));
         }
