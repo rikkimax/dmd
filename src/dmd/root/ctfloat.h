@@ -12,7 +12,12 @@
 
 #include "longdouble.h"
 
-// Type used by the front-end for compile-time reals
+/*
+ * Type used by the front-end for compile-time reals
+ *
+ * Be aware, if you use this via the c header file, it will not match for -version=NoBackend.
+ * Which will cause errors.
+ */
 typedef longdouble real_t;
 
 // Compile-time floating-point helper

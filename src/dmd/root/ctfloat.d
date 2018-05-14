@@ -20,34 +20,59 @@ import core.stdc.string;
 
 nothrow:
 
-// Type used by the front-end for compile-time reals
-public import dmd.root.longdouble : real_t = longdouble;
+/*
+ * Type used by the front-end for compile-time reals
+ *
+ * Be aware, if you use this via the c header file, it will not match for -version=NoBackend.
+ * Which will cause errors.
+ */
+version(NoBackend)
+    alias real_t = real;
+else
+    public import dmd.root.longdouble : real_t = longdouble;
 
 private
 {
     version(CRuntime_DigitalMars) __gshared extern (C) extern const(char)* __locale_decpoint;
-
-    version(CRuntime_Microsoft) extern (C++)
+    
+    /*
+     * Detects if we are compiling against a NoBackend target.
+     * If so, we ditch the functions that dmd's backend provides and rely on less desirable ones.
+     */
+    version(NoBackend)
     {
-        static if (is(real_t == real))
+    }
+    else
+    {
+        version(CRuntime_Microsoft) extern (C++)
+        {
+            /*
+             * We define the version CRuntime_Microsoft_Backend so that
+             *  in later parts of the code, it won't have to be complicated
+             *  or do the same detection for NoBackend as we do here.
+             */
+            version = CRuntime_Microsoft_Backend;
+            
+            static if (is(real_t == real))
             struct longdouble { real_t r; }
-        else
-            import dmd.root.longdouble : longdouble;
-        size_t ld_sprint(char* str, int fmt, longdouble x);
-        longdouble strtold_dm(const(char)* p, char** endp);
+            else
+                import dmd.root.longdouble : longdouble;
+            size_t ld_sprint(char* str, int fmt, longdouble x);
+            longdouble strtold_dm(const(char)* p, char** endp);
+        }
     }
 }
 
 // Compile-time floating-point helper
 extern (C++) struct CTFloat
 {
-  nothrow:
+nothrow:
     version (GNU)
         enum yl2x_supported = false;
     else
         enum yl2x_supported = __traits(compiles, core.math.yl2x(1.0L, 2.0L));
     enum yl2xp1_supported = yl2x_supported;
-
+    
     static void yl2x(const real_t* x, const real_t* y, real_t* res)
     {
         static if (yl2x_supported)
@@ -55,7 +80,7 @@ extern (C++) struct CTFloat
         else
             assert(0);
     }
-
+    
     static void yl2xp1(const real_t* x, const real_t* y, real_t* res)
     {
         static if (yl2xp1_supported)
@@ -63,7 +88,7 @@ extern (C++) struct CTFloat
         else
             assert(0);
     }
-
+    
     static if (!is(real_t == real))
     {
         alias sin = dmd.root.longdouble.sinl;
@@ -82,7 +107,7 @@ extern (C++) struct CTFloat
         static real_t fabs(real_t x) { return core.math.fabs(x); }
         static real_t ldexp(real_t n, int exp) { return core.math.ldexp(n, exp); }
     }
-
+    
     static if (!is(real_t == real))
     {
         static real_t round(real_t x) { return real_t(cast(double)core.stdc.math.roundl(cast(double)x)); }
@@ -111,53 +136,53 @@ extern (C++) struct CTFloat
         static real_t exp2(real_t x) { return core.stdc.math.exp2l(x); }
         static real_t copysign(real_t x, real_t s) { return core.stdc.math.copysignl(x, s); }
     }
-
+    
     static real_t fmin(real_t x, real_t y) { return x < y ? x : y; }
     static real_t fmax(real_t x, real_t y) { return x > y ? x : y; }
-
+    
     static real_t fma(real_t x, real_t y, real_t z) { return (x * y) + z; }
-
+    
     static bool isIdentical(real_t a, real_t b)
     {
         // don't compare pad bytes in extended precision
         enum sz = (real_t.mant_dig == 64) ? 10 : real_t.sizeof;
         return memcmp(&a, &b, sz) == 0;
     }
-
+    
     static size_t hash(real_t a)
     {
         import dmd.root.hash : calcHash;
-
+        
         if (isNaN(a))
             a = real_t.nan;
         enum sz = (real_t.mant_dig == 64) ? 10 : real_t.sizeof;
         return calcHash(cast(ubyte*) &a, sz);
     }
-
+    
     static bool isNaN(real_t r)
     {
         return !(r == r);
     }
-
+    
     static bool isSNaN(real_t r)
     {
         return isNaN(r) && !(((cast(ubyte*)&r)[7]) & 0x40);
     }
-
+    
     // the implementation of longdouble for MSVC is a struct, so mangling
     //  doesn't match with the C++ header.
     // add a wrapper just for isSNaN as this is the only function called from C++
-    version(CRuntime_Microsoft) static if (is(real_t == real))
+    version(CRuntime_Microsoft_Backend) static if (is(real_t == real))
         static bool isSNaN(longdouble ld)
-        {
-            return isSNaN(ld.r);
-        }
-
+    {
+        return isSNaN(ld.r);
+    }
+    
     static bool isInfinity(real_t r)
     {
         return isIdentical(fabs(r), real_t.infinity);
     }
-
+    
     static real_t parse(const(char)* literal, bool* isOutOfRange = null)
     {
         errno = 0;
@@ -166,7 +191,7 @@ extern (C++) struct CTFloat
             auto save = __locale_decpoint;
             __locale_decpoint = ".";
         }
-        version(CRuntime_Microsoft)
+        version(CRuntime_Microsoft_Backend)
         {
             version(LDC)
                 auto r = strtold_dm(literal, null);
@@ -180,10 +205,10 @@ extern (C++) struct CTFloat
             *isOutOfRange = (errno == ERANGE);
         return r;
     }
-
+    
     static int sprint(char* str, char fmt, real_t x)
     {
-        version(CRuntime_Microsoft)
+        version(CRuntime_Microsoft_Backend)
         {
             return cast(int)ld_sprint(str, fmt, longdouble(x));
         }
@@ -206,13 +231,13 @@ extern (C++) struct CTFloat
             }
         }
     }
-
+    
     // Constant real values 0, 1, -1 and 0.5.
     static __gshared real_t zero;
     static __gshared real_t one;
     static __gshared real_t minusone;
     static __gshared real_t half;
-
+    
     shared static this()
     {
         zero = real_t(0);
