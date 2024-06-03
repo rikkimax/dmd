@@ -279,7 +279,7 @@
                                 "kind": "function",
                                 "line": 23,
                                 "name": "t",
-                                "type": "const T[0]()"
+                                "type": "T[0]() const"
                             }
                         ],
                         "name": "Baz",
@@ -554,7 +554,7 @@
                 "kind": "function",
                 "line": 74,
                 "name": "bar",
-                "originalType": "@trusted myInt(ref uint blah, Bar2 foo = new Bar3(7))",
+                "originalType": "myInt(ref uint blah, Bar2 foo = new Bar3(7)) @trusted",
                 "parameters": [
                     {
                         "deco": "VALUE_REMOVED_FOR_TEST",
