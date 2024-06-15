@@ -606,6 +606,16 @@ private int tryMain(size_t argc, const(char)** argv, ref Param params)
     if (global.errors || global.warnings)
         removeHdrFilesAndFail(params, modules);
 
+    version(none)
+    {
+        import dmd.semantic4.entry;
+        runSemantic4(modules);
+
+        // Do not attempt to generate output files if errors or warnings occurred
+        if (global.errors || global.warnings)
+            removeHdrFilesAndFail(params, modules);
+    }
+
     // inlineScan incrementally run semantic3 of each expanded functions.
     // So deps file generation should be moved after the inlining stage.
     if (OutBuffer* ob = params.moduleDeps.buffer)

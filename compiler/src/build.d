@@ -1572,7 +1572,8 @@ auto sourceFiles()
             impcnvtab.d imphint.d importc.d init.d initsem.d inline.d inlinecost.d intrange.d json.d lambdacomp.d
             mtype.d mustuse.d nogc.d nspace.d ob.d objc.d opover.d optimize.d
             parse.d parsetimevisitor.d permissivevisitor.d postordervisitor.d pragmasem.d printast.d rootobject.d safe.d sapply.d
-            semantic2.d semantic3.d sideeffect.d statement.d statement_rewrite_walker.d
+            semantic2.d semantic3.d semantic4/entry.d semantic4/ir.d semantic4/ir_build.d semantic4/utils.d semantic4/adt.d
+            sideeffect.d statement.d statement_rewrite_walker.d
             statementsem.d staticassert.d staticcond.d stmtstate.d target.d templatesem.d templateparamsem.d traits.d
             transitivevisitor.d typesem.d typinf.d utils.d visitor.d foreachvar.d
             cparse.d
