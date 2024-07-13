@@ -1,0 +1,47 @@
+Member of operator
+
+The member of operator is a syntax sugar syntax that enables given a context and an identifier to perform a get member operation on it for convenient access.
+
+This allows you to do inference upon a variable declaration!
+
+```d
+Enum var = :Identifier;
+```
+
+Which is equivalent to:
+
+```d
+Enum var = __traits(getMember, Enum, "Identifier");
+```
+
+In a switch statement!
+
+```d
+switch(var) {
+    case :Identifier:
+        break;
+}
+```
+
+Function calls:
+
+```d
+void func(Enum e) {
+}
+
+func(:Identifier);
+```
+
+Even returns:
+
+```d
+Enum func() {
+    return :Identifier;
+}
+```
+
+It does not support binary expressions:
+
+```d
+int var = :max - 2; // Error
+```
