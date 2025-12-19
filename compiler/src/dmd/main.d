@@ -661,6 +661,12 @@ private int tryMain(const(char)[][] argv, out Param params)
     if (global.errors)
         removeHdrFilesAndFail(params, modules);
 
+    if (!global.errors)
+    {
+        import dmd.dfa.entry;
+        dfaMultiEntry;
+    }
+
     // Scan for modules with always inline functions
     foreach (m; modules)
     {

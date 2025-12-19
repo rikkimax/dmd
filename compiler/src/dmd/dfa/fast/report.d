@@ -83,6 +83,9 @@ struct DFAReporter
             else if (suggestedNotNullOut == Fact.Unspecified && cctx.nullable == Nullable.NonNull)
                 suggestedNotNullOut = Fact.Guaranteed;
 
+            if (suggestedNotNullOut != Fact.Unspecified)
+                fd.parametersDFAInfo.inferred++;
+
             assert(!param.specifiedByUser);
             param.notNullOut = suggestedNotNullOut;
         });
@@ -129,6 +132,8 @@ struct DFAReporter
             }
             else if (!param.specifiedByUser)
             {
+                fd.parametersDFAInfo.inferred++;
+
                 if (scv.var.isNullable)
                 {
                     if (param.notNullIn == Fact.Unspecified)
@@ -146,6 +151,7 @@ struct DFAReporter
                     }
                     else
                     {
+                        fd.parametersDFAInfo.inferred--;
                         param.notNullOut = Fact.Unspecified;
                     }
                 }

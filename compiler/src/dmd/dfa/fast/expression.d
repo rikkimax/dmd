@@ -2160,6 +2160,9 @@ struct ExpressionWalker
         else
             dfaCommon.printStateln("Calling function");
 
+        if (toCallFunction !is null && toCallFunction.parametersDFAInfo is null)
+            dfaCommon.notAllFunctionCallsAnalyzed = true;
+
         const functionIsNoReturn = (toCallFunction !is null && toCallFunction.noreturn) || (toCallFunctionType !is null
                 && toCallFunctionType.next !is null
                 && toCallFunctionType.next.isTypeNoreturn !is null);

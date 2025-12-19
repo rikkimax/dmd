@@ -180,6 +180,7 @@ extern(D) struct ParametersDFAInfo
     ParameterDFAInfo thisPointer;
     ParameterDFAInfo returnValue;
     ParameterDFAInfo[] parameters;
+    int inferred;
 }
 
 /// Information for data flow analysis per parameter

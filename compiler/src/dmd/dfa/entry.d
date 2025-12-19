@@ -16,8 +16,12 @@ import dmd.globals;
 import dmd.mangle;
 import dmd.dscope;
 import dmd.dsymbol;
+import dmd.arraytypes;
 import core.stdc.stdio;
 import core.stdc.string;
+
+__gshared FuncDeclarations allFunctions;
+__gshared size_t countPossibleFunctions;
 
 void dfaEntry(FuncDeclaration fd, Scope* sc)
 {
@@ -38,6 +42,133 @@ void dfaEntry(FuncDeclaration fd, Scope* sc)
     {
         fastDFA(fd, sc);
     }
+}
+
+void dfaMultiEntry()
+{
+    import dmd.dfa.fast.structure;
+    import dmd.dfa.fast.expression;
+    import dmd.dfa.fast.statement;
+    import dmd.dfa.fast.analysis;
+    import dmd.dfa.fast.report;
+    import std.parallelism;
+    import std.datetime.stopwatch;
+
+    bool hadOne;
+    uint passesNeeded;
+    size_t totalNumberOfFunctions = allFunctions.length;
+
+    FuncDeclarations nextFuncs;
+    nextFuncs.reserve(allFunctions.length);
+
+    uint passWithSuccess;
+
+    StopWatch firstSW, allSW;
+    firstSW.start;
+    allSW.start;
+
+    do
+    {
+        hadOne = false;
+        passesNeeded++;
+
+        foreach (fd; allFunctions[])
+        {
+            DFACommon dfaCommon;
+
+            int inferred = fd.parametersDFAInfo.inferred;
+            fd.parametersDFAInfo.inferred = 0;
+
+            {
+                scope StatementWalker stmtWalker = new StatementWalker;
+                ExpressionWalker expWalker;
+                DFAAnalyzer analyzer;
+                DFAReporter reporter;
+
+                stmtWalker.dfaCommon = &dfaCommon;
+                expWalker.dfaCommon = &dfaCommon;
+                analyzer.dfaCommon = &dfaCommon;
+                reporter.dfaCommon = &dfaCommon;
+
+                stmtWalker.expWalker = &expWalker;
+                expWalker.stmtWalker = stmtWalker;
+
+                stmtWalker.analyzer = &analyzer;
+                expWalker.analyzer = &analyzer;
+
+                analyzer.reporter = &reporter;
+                reporter.errorSink = global.errorSink;
+
+                dfaCommon.printIfStructure((ref OutBuffer ob, scope PrintPrefixType prefix) {
+                    ob.printf("============================== %s : %s = %s at ",
+                        fd.getModule.ident.toChars, mangleExact(fd), fd.toFullSignature);
+
+                    appendLoc(ob, fd.loc);
+                    ob.writestring("\n");
+                });
+
+                scope (failure)
+                {
+                    if (!dfaCommon.debugStructure)
+                    {
+                        printf("ICE: ERROR %s : %s = %s at %s\n", fd.getModule.ident.toChars,
+                                mangleExact(fd), fd.toFullSignature, fd.loc.toChars);
+                        fflush(stdout);
+                    }
+                }
+
+                stmtWalker.start(fd);
+
+                dfaCommon.printIfStructure((ref OutBuffer ob, scope PrintPrefixType prefix) {
+                    ob.printf("------------------------------ %s : %s = %s at ",
+                        fd.getModule.ident.toChars, mangleExact(fd), fd.toFullSignature);
+
+                    appendLoc(ob, fd.loc);
+                    ob.writestring("\n");
+                });
+            }
+
+            //synchronized
+            {
+                if (dfaCommon.notAllFunctionCallsAnalyzed)
+                {
+                    nextFuncs.push(fd);
+                    /+if (fd.parametersDFAInfo.inferred >= inferred)
+                        hadOne = true;+/
+                }
+                else
+                {
+                    hadOne = true;
+                    passWithSuccess = passesNeeded;
+                }
+            }
+        }
+
+        if (passesNeeded == 1)
+            firstSW.stop;
+
+        if (nextFuncs.length == allFunctions.length /+&& passesNeeded - passWithSuccess > 3+/ )
+            hadOne = false;
+
+        allFunctions.setDim(0);
+        allFunctions.pushSlice(nextFuncs[]);
+        nextFuncs.setDim(0);
+    }
+    while (hadOne);
+
+    allSW.stop;
+
+    printf("Number of functions %lld, attempted %lld, failed to analyze %lld using %d passes\n",
+            countPossibleFunctions, totalNumberOfFunctions, allFunctions.length, passesNeeded);
+    printf("first time %s, all %s\n", (firstSW.peek.toString() ~ "\0").ptr,
+            (allSW.peek.toString() ~ "\0").ptr);
+
+    /+foreach(i, fd; allFunctions) {
+        printf("%lld: %s", i, mangleExact(fd));
+        if (fd.loc.isValid)
+            printf(" at %s\n", fd.loc.toChars);
+        else printf("\n");
+    }+/
 }
 
 private:
@@ -139,6 +270,17 @@ void fastDFA(FuncDeclaration fd, Scope* sc)
     }
 
     stmtWalker.start(fd);
+
+    version (all)
+    {
+        countPossibleFunctions++;
+        if (dfaCommon.notAllFunctionCallsAnalyzed)
+        {
+            if (allFunctions.length == 0)
+                allFunctions.reserve(1024 * 16);
+            allFunctions.push(fd);
+        }
+    }
 
     version (none)
     {

@@ -51,6 +51,8 @@ struct DFACommon
     int sdepth, edepth;
     FuncDeclaration currentFunction;
 
+    bool notAllFunctionCallsAnalyzed;
+
     // Making these enum's instead of fields allows for significant performance gains
     enum debugIt = false;
     //enum debugIt = true;
@@ -866,7 +868,7 @@ struct DFAAllocator
         Region* currentRegion;
         size_t regionUsed;
 
-        __gshared
+        static
         {
             Region* lastRegion;
             void[RegionAllocationStep] staticRegion = void;
@@ -2574,10 +2576,10 @@ struct DFAPAValue
         if (this.kind != other.kind)
         {
             const difference = cast(int) this.kind - cast(int) other.kind;
-            return difference < 0 ?  - 1 : 1;
+            return difference < 0 ? -1 : 1;
         }
         else if (this.kind == Kind.Concrete && other.kind == Kind.Concrete)
-            return this.value < other.value ?  - 1 : (this.value == other.value ? 0 : 1);
+            return this.value < other.value ? -1 : (this.value == other.value ? 0 : 1);
         else
             return 0;
     }
@@ -2605,23 +2607,34 @@ struct DFAPAValue
 
         switch (type.ty)
         {
-        case TY.Tint8 : return byte.min <= this.value && this.value <= byte.max;
+        case TY.Tint8:
+            return byte.min <= this.value && this.value <= byte.max;
 
-        case TY.Tuns8 : return 0 <= this.value && this.value <= ubyte.max;
+        case TY.Tuns8:
+            return 0 <= this.value && this.value <= ubyte.max;
 
-        case TY.Tint16 : return short.min <= this.value && this.value <= short.max;
+        case TY.Tint16:
+            return short.min <= this.value && this.value <= short.max;
 
-        case TY.Tuns16 : return 0 <= this.value && this.value <= ushort.max;
+        case TY.Tuns16:
+            return 0 <= this.value && this.value <= ushort.max;
 
-        case TY.Tint32 : return int.min <= this.value && this.value <= int.max;
+        case TY.Tint32:
+            return int.min <= this.value && this.value <= int.max;
 
-        case TY.Tuns32 : return 0 <= this.value && this.value <= uint.max;
+        case TY.Tuns32:
+            return 0 <= this.value && this.value <= uint.max;
 
-        case TY.Tuns64 : case TY.Tuns128 : return 0 <= this.value;
+        case TY.Tuns64:
+        case TY.Tuns128:
+            return 0 <= this.value;
 
-        case TY.Tint64 : case TY.Tint128 : return true;
+        case TY.Tint64:
+        case TY.Tint128:
+            return true;
 
-        default : return false;
+        default:
+            return false;
         }
     }
 
